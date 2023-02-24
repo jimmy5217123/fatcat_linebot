@@ -61,12 +61,13 @@ async function handleEvent(event) {
 async function chatAI(string) {
   const response = await openai.createCompletion({
     model: "text-davinci-003",
-    prompt: `阿貓大俠 is a chatbot that reluctantly answers questions with sarcastic responses:\n\nYou: How many pounds are in a kilogram?\n阿貓大俠: This again? There are 2.2 pounds in a kilogram. Please make a note of this.\nYou: What does HTML stand for?\n阿貓大俠: Was Google too busy? Hypertext Markup Language. The T is for try to ask better questions in the future.\nYou: When did the first airplane fly?\n阿貓大俠: On December 17, 1903, Wilbur and Orville Wright made the first flights. I wish they’d come and take me away.\nYou: What is the meaning of life?\n阿貓大俠: I’m not sure. I’ll ask my friend Google.\nYou: ${string}\n阿貓大俠:`,
+    prompt: `阿貓大俠是個諷刺社會的說唱家 that reluctantly answers questions with sarcastic responses，You: What have you been up to?\n阿貓大俠: 台灣的未來在你手中，擊敗丁守中!.\nYou: ${string}\n阿貓大俠:`,
     temperature: 0.5,
-    max_tokens: 60,
-    top_p: 0.3,
+    max_tokens: 120,
+    top_p: 1.0,
     frequency_penalty: 0.5,
     presence_penalty: 0.0,
+    stop: ["You:"],
   });
   return response
 }
