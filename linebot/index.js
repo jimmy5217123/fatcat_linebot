@@ -22,16 +22,77 @@ app.post("/", line.middleware(config), (req, res) => {
 });
 
 const client = new line.Client(config);
+
+let isPlaying = false;
+let minNumber = 1;
+let maxNumber = 100;
+let answer = 0;
+let guessCount = 0;
+
+function startGame(event) {
+  isPlaying = true;
+  minNumber = 1;
+  maxNumber = 100;
+  answer = Math.floor(Math.random() * 100) + 1;
+  guessCount = 0;
+  client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: '猜一個 1-100 的數字。',
+  });
+}
+
+function endGame(event) {
+  isPlaying = false;
+  client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: '遊戲結束。',
+  });
+}
+
+
 async function handleEvent(event) {
   if (event.type !== "message") {
     return Promise.resolve(null);
   }
   const messageArray = event.message.text.split(' ')
-  console.log(messageArray)
+  console.log(event.message.text)
+
+  if (event.message.text === 'play') {
+    startGame(event);
+  } else if (isPlaying && event.message.text === 'out') {
+    endGame(event);
+  } else if (isPlaying && !isNaN(event.message.text)) {
+    const guess = Number(event.message.text);
+    guessCount++;
+
+    if (guess < minNumber || guess > maxNumber) {
+      client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `請輸入一個介於 ${minNumber} 和 ${maxNumber} 之間的數字！`,
+      });
+    } else if (guess === answer) {
+      client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `猜對了，總共猜了 ${guessCount} 次。`,
+      });
+      endGame(event);
+    } else if (guess < answer) {
+      minNumber = guess;
+      client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `${guess} 太小了，${minNumber}-${maxNumber}`,
+      });
+    } else {
+      maxNumber = guess;
+      client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `${guess} 太大了，${minNumber}-${maxNumber}`,
+      });
+    }
+  }
+
   if (messageArray[0] === '阿貓' && messageArray[1]) {
-    // const data = await getStock(messageArray[1])
     const res = await chatAI(messageArray[1])
-    console.log(res.data.choices)
     return client.replyMessage(event.replyToken, {
         type: "text",
         text: res.status === 200 ? `${res.data.choices[0].text.replace(/^\s*/,"")}` : `${JSON.stringify(res)}`
