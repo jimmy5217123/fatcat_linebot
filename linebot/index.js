@@ -11,84 +11,86 @@ const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.LINE_CHANNEL_SECRET,
 };
+const client = new line.Client(config);
 
 const app = express();
-
-
 app.post("/", line.middleware(config), (req, res) => {
   Promise.all(req.body.events.map(handleEvent)).then((result) =>
     res.json(result)
   );
 });
 
-const client = new line.Client(config);
 
-let isPlaying = false;
-let minNumber = 1;
-let maxNumber = 100;
-let answer = 0;
-let guessCount = 0;
+class UltimateNumberGame {
+  constructor(minNumber, maxNumber) {
+    this.minNumber = minNumber;
+    this.maxNumber = maxNumber;
+    this.answer = Math.floor(Math.random() * (maxNumber - minNumber + 1)) + minNumber;
+    this.isPlaying = false;
+    this.guessCount = 0;
+  }
 
-function startGame(event) {
-  isPlaying = true;
-  minNumber = 1;
-  maxNumber = 100;
-  answer = Math.floor(Math.random() * 100) + 1;
-  guessCount = 0;
-  client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: '猜一個 1-100 的數字。',
-  });
+  startGame() {
+    this.isPlaying = true;
+    this.guessCount = 0;
+    return `遊戲開始！請猜一個介於 ${this.minNumber} 和 ${this.maxNumber} 之間的數字。`;
+  }
+
+  endGame() {
+    this.isPlaying = false;
+    return `遊戲結束！答案是 ${this.answer}。`;
+  }
+
+  makeGuess(guess) {
+    console.log(guess, 'dwqdqwdihwqhf')
+    this.guessCount++;
+    if (guess < this.minNumber || guess > this.maxNumber) {
+      return `請輸入一個介於 ${this.minNumber} 和 ${this.maxNumber} 之間的有效數字！`;
+    } else if (guess === this.answer) {
+      this.isPlaying = false;
+      return `恭喜你猜對了！你總共猜了 ${this.guessCount} 次。`;
+    } else if (guess < this.answer) {
+      this.minNumber = guess;
+      return `你猜的數字 ${guess} 太小了，介於 ${this.minNumber} 和 ${this.maxNumber}`;
+    } else {
+      this.maxNumber = guess;
+      return `你猜的數字 ${guess} 太大了，介於 ${this.minNumber} 和 ${this.maxNumber}`;
+    }
+  }
 }
 
-function endGame(event) {
-  isPlaying = false;
-  client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: '遊戲結束。',
-  });
-}
 
+const games = new Map();
+
+function getGame(chatroomId) {
+  if (!games.has(chatroomId)) {
+    const game = new UltimateNumberGame(1, 100);
+    games.set(chatroomId, game);
+    return game;
+  } else {
+    return games.get(chatroomId);
+  }
+}
 
 async function handleEvent(event) {
   if (event.type !== "message") {
     return Promise.resolve(null);
   }
   const messageArray = event.message.text.split(' ')
-  console.log(event.message.text)
+  const chatType = event.source.type
+  const chatroomId = chatType === 'group' ? event.source.groupId : chatType === 'user' ? event.source.userId : '2313213'
+  const game = getGame(chatroomId);
 
   if (event.message.text === 'play') {
-    startGame(event);
-  } else if (isPlaying && event.message.text === 'out') {
-    endGame(event);
-  } else if (isPlaying && !isNaN(event.message.text)) {
+    const replyText = game.startGame();
+    await client.replyMessage(event.replyToken, { type: 'text', text: replyText });
+  } else if (game.isPlaying && event.message.text === 'out') {
+    const replyText = game.endGame();
+    await client.replyMessage(event.replyToken, { type: 'text', text: replyText})
+  } else if (game.isPlaying && !isNaN(event.message.text)) {
     const guess = Number(event.message.text);
-    guessCount++;
-
-    if (guess < minNumber || guess > maxNumber) {
-      client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `請輸入一個介於 ${minNumber} 和 ${maxNumber} 之間的數字！`,
-      });
-    } else if (guess === answer) {
-      client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `猜對了，總共猜了 ${guessCount} 次。`,
-      });
-      endGame(event);
-    } else if (guess < answer) {
-      minNumber = guess;
-      client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `${guess} 太小了，${minNumber}-${maxNumber}`,
-      });
-    } else {
-      maxNumber = guess;
-      client.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `${guess} 太大了，${minNumber}-${maxNumber}`,
-      });
-    }
+    const replyText = game.makeGuess(guess)
+    await client.replyMessage(event.replyToken, { type: 'text', text: replyText})
   }
 
   if (messageArray[0] === '阿貓' && messageArray[1]) {
