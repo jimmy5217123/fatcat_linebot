@@ -1,3 +1,6 @@
+const UltimateNumberGame = require('./UltimateNumberGame')
+const OneA2BGame = require('./OneA2B')
+
 const { Configuration, OpenAIApi } = require("openai");
 const configuration = new Configuration({
   apiKey: process.env.OPEN_API_KEY,
@@ -20,39 +23,63 @@ app.post("/", line.middleware(config), (req, res) => {
   );
 });
 
-const UltimateNumberGame = require('./UltimateNumberGame')
+async function replyTextMessage(event, text) {
+  await client.replyMessage(event.replyToken, { type: 'text', text: text})
+}
 
-const games = new Map();
 
-function getGame(chatroomId) {
-  if (!games.has(chatroomId)) {
+const UltimateNumberGames = new Map();
+function getUltimateNumberGame(chatroomId) {
+  if (!UltimateNumberGames.has(chatroomId)) {
     const game = new UltimateNumberGame(1, 100);
-    games.set(chatroomId, game);
+    UltimateNumberGames.set(chatroomId, game);
     return game;
   } else {
-    return games.get(chatroomId);
+    return UltimateNumberGames.get(chatroomId);
+  }
+}
+
+const OneA2BGames = new Map();
+function getOneA2Bgame(chatroomId) {
+  if (!OneA2BGames.has(chatroomId)) {
+    const game = new OneA2BGame();
+    OneA2BGames.set(chatroomId, game);
+    return game;
+  } else {
+    return OneA2BGames.get(chatroomId);
   }
 }
 
 async function handleEvent(event) {
+
   if (event.type !== "message") {
     return Promise.resolve(null);
   }
   const messageArray = event.message.text.split(' ')
   const chatType = event.source.type
   const chatroomId = chatType === 'group' ? event.source.groupId : chatType === 'user' ? event.source.userId : '2313213'
-  const game = getGame(chatroomId);
+  const myUltimateNumberGame = getUltimateNumberGame(chatroomId);
+  const myOneA2BGame = getOneA2Bgame(chatroomId)
+
+  if (event.message.text === '1a2b') {
+    const replyText = myOneA2BGame.start()
+    await replyTextMessage(event, replyText)
+  } else if (myOneA2BGame.isPlaying && event.message.text.length === 4 && !isNaN(event.message.text)) {
+    const guess = event.message.text;
+    const replyText = myOneA2BGame.guess(guess)
+    await replyTextMessage(event, replyText)
+  }
 
   if (event.message.text === 'play') {
-    const replyText = game.startGame();
-    await client.replyMessage(event.replyToken, { type: 'text', text: replyText });
-  } else if (game.isPlaying && event.message.text === 'out') {
-    const replyText = game.endGame();
-    await client.replyMessage(event.replyToken, { type: 'text', text: replyText})
-  } else if (game.isPlaying && !isNaN(event.message.text)) {
+    const replyText = myUltimateNumberGame.startGame();
+    await replyTextMessage(event, replyText)
+  } else if (myUltimateNumberGame.isPlaying && event.message.text === 'out') {
+    const replyText = myUltimateNumberGame.endGame();
+    await replyTextMessage(event, replyText)
+  } else if (myUltimateNumberGame.isPlaying && !isNaN(event.message.text)) {
     const guess = Number(event.message.text);
-    const replyText = game.makeGuess(guess)
-    await client.replyMessage(event.replyToken, { type: 'text', text: replyText})
+    const replyText = myUltimateNumberGame.makeGuess(guess)
+    await replyTextMessage(event, replyText)
   }
 
   if (messageArray[0] === '阿貓' && messageArray[1]) {
@@ -65,23 +92,6 @@ async function handleEvent(event) {
     return Promise.resolve(null)
   }
 }
-
-// async function getStock (stockNumber) {
-//   const tse = axios.get(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=tse_${stockNumber}.tw&json=1&delay=0`)
-//   const otc = axios.get(`https://mis.twse.com.tw/stock/api/getStockInfo.jsp?ex_ch=otc_${stockNumber}.tw&json=1&delay=0`)
-
-//   return Promise.all([tse, otc])
-//   .then((val) => {
-//     const filterArray = val.filter(data => data.data.msgArray.length > 0)
-//     if (filterArray.length === 0) {
-//       return '阿貓大俠找不到這隻股票'
-//     } else {
-//       const stockDetail = filterArray[0].data.msgArray[0]
-//       const result = ` 公司: ${stockDetail.n} \n 開盤: ${stockDetail.o} \n 最高: ${stockDetail.h} \n 最低: ${stockDetail.l} \n 累積成交量: ${stockDetail.v} \n 當盤成交量: ${stockDetail.tv} \n 當盤成交價: ${stockDetail.z} \n 最後成交時刻: ${stockDetail.t}`
-//       return result
-//     }
-//   })
-// }
 
 async function chatAI(string) {
   const response = await openai.createCompletion({
