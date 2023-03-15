@@ -1,5 +1,6 @@
-const UltimateNumberGame = require('./UltimateNumberGame')
-const OneA2BGame = require('./OneA2B')
+const UltimateNumberGame = require('./game/UltimateNumberGame')
+const OneA2BGame = require('./game/OneA2B')
+const getPhoto = require('./method/getBeauty')
 
 const { Configuration, OpenAIApi } = require("openai");
 const configuration = new Configuration({
@@ -27,6 +28,9 @@ async function replyTextMessage(event, text) {
   await client.replyMessage(event.replyToken, { type: 'text', text: text})
 }
 
+async function replyImageMessage(event, imageObj) {
+  await client.replyMessage(event.replyToken, imageObj)
+}
 
 const UltimateNumberGames = new Map();
 function getUltimateNumberGame(chatroomId) {
@@ -50,16 +54,51 @@ function getOneA2Bgame(chatroomId) {
   }
 }
 
+async function chatAI(string) {
+  const response = await openai.createCompletion({
+    model: "text-davinci-003",
+    prompt: `阿貓大俠是個諷刺社會的說唱家 that reluctantly answers questions with sarcastic responses，You: What have you been up to?\n阿貓大俠: 台灣的未來在你手中，擊敗丁守中!.\nYou: ${string}\n阿貓大俠:`,
+    temperature: 0.5,
+    max_tokens: 120,
+    top_p: 1.0,
+    frequency_penalty: 0.5,
+    presence_penalty: 0.0,
+    stop: ["You:"],
+  });
+  return response
+}
+
 async function handleEvent(event) {
 
   if (event.type !== "message") {
     return Promise.resolve(null);
   }
   const messageArray = event.message.text.split(' ')
+  const keyman = messageArray[0]
+  messageArray.splice(0, 1)
+  const keyMessage = messageArray.join(' ')
+  console.log(messageArray.splice(0, 1), keyMessage)
   const chatType = event.source.type
   const chatroomId = chatType === 'group' ? event.source.groupId : chatType === 'user' ? event.source.userId : '2313213'
   const myUltimateNumberGame = getUltimateNumberGame(chatroomId);
   const myOneA2BGame = getOneA2Bgame(chatroomId)
+
+  if (keyman === '阿貓' && keyMessage) {
+    const res = await chatAI(keyMessage)
+    return client.replyMessage(event.replyToken, {
+        type: "text",
+        text: res.status === 200 ? `${res.data.choices[0].text.replace(/^\s*/,"")}` : `${JSON.stringify(res)}`
+    }); 
+  } 
+
+  if (event.message.text === '抽') {
+    try {
+      const imageObj = await getPhoto()
+      await replyImageMessage(event, imageObj)
+    } catch (error) {
+      console.log(error)
+    }
+  }
 
   if (event.message.text === '1a2b') {
     const replyText = myOneA2BGame.start()
@@ -82,29 +121,7 @@ async function handleEvent(event) {
     await replyTextMessage(event, replyText)
   }
 
-  if (messageArray[0] === '阿貓' && messageArray[1]) {
-    const res = await chatAI(messageArray[1])
-    return client.replyMessage(event.replyToken, {
-        type: "text",
-        text: res.status === 200 ? `${res.data.choices[0].text.replace(/^\s*/,"")}` : `${JSON.stringify(res)}`
-    }); 
-  } else {
-    return Promise.resolve(null)
-  }
-}
-
-async function chatAI(string) {
-  const response = await openai.createCompletion({
-    model: "text-davinci-003",
-    prompt: `阿貓大俠是個諷刺社會的說唱家 that reluctantly answers questions with sarcastic responses，You: What have you been up to?\n阿貓大俠: 台灣的未來在你手中，擊敗丁守中!.\nYou: ${string}\n阿貓大俠:`,
-    temperature: 0.5,
-    max_tokens: 120,
-    top_p: 1.0,
-    frequency_penalty: 0.5,
-    presence_penalty: 0.0,
-    stop: ["You:"],
-  });
-  return response
+  return Promise.resolve(null)
 }
 
 // listen on port
