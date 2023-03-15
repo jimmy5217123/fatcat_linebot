@@ -4,12 +4,13 @@ const fs = require('fs');
 const path = require('path');
 
 async function getPhoto() {
-    const url = 'https://www.ptt.cc/bbs/Beauty/index4001.html';
+    const randomNumber = Math.floor(Math.random() * 9) + 1
+    const url = `https://www.ptt.cc/bbs/Beauty/index399${randomNumber}.html`;
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
       Cookie: 'over18=1',
     };
-  
+    let images = []
     try {
       const response = await axios.get(url, { headers });
       if (!response.data) {
@@ -25,19 +26,17 @@ async function getPhoto() {
       if (articles.length === 0) {
         throw new Error('No matching articles found.');
       }
-      console.log(articles)
-      const article = articles[Math.floor(Math.random() * articles.length)];
-      const articleResponse = await axios.get(article.link, { headers });
-      const $$ = cheerio.load(articleResponse.data);
-  
-      const images = $$('a[href$=".jpg"], a[href$=".png"]').map((i, elem) => ({
-        link: $(elem).attr('href'),
-      })).get();
-
-      if (images.length === 0) {
-        throw new Error('No images found.');
+      
+      while (images && images.length === 0) {
+        const article = articles[Math.floor(Math.random() * articles.length)];
+        const articleResponse = await axios.get(article.link, { headers });
+        const $$ = cheerio.load(articleResponse.data);
+    
+        images = $$('a[href$=".jpg"], a[href$=".png"]').map((i, elem) => ({
+          link: $(elem).attr('href'),
+        })).get();
       }
-  
+
       const image = images[Math.floor(Math.random() * images.length)];
   
       return {
