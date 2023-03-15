@@ -91,6 +91,20 @@ async function handleEvent(event) {
     }); 
   } 
 
+  if (event.message.text === '閃電五連抽') {
+    try {
+      const imageArray = []
+      for (let i = 0; i < 5; i++) {
+        const imageObj = await getPhoto()
+        imageArray.push(imageObj)
+      }
+      console.log(imageArray)
+      await replyImageMessage(event, imageArray)
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
   if (event.message.text === '抽') {
     try {
       const imageObj = await getPhoto()
