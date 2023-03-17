@@ -98,7 +98,6 @@ async function handleEvent(event) {
         const imageObj = await getPhoto()
         imageArray.push(imageObj)
       }
-      console.log(imageArray)
       await replyImageMessage(event, imageArray)
     } catch (error) {
       console.log(error)
@@ -114,7 +113,7 @@ async function handleEvent(event) {
     }
   }
 
-  if (event.message.text === '1a2b') {
+  if (event.message.text === '1A2B') {
     const replyText = myOneA2BGame.start()
     await replyTextMessage(event, replyText)
   } else if (myOneA2BGame.isPlaying && event.message.text.length === 4 && !isNaN(event.message.text)) {
@@ -123,7 +122,7 @@ async function handleEvent(event) {
     await replyTextMessage(event, replyText)
   }
 
-  if (event.message.text === 'play') {
+  if (event.message.text === '終極密碼') {
     const replyText = myUltimateNumberGame.startGame();
     await replyTextMessage(event, replyText)
   } else if (myUltimateNumberGame.isPlaying && event.message.text === 'out') {

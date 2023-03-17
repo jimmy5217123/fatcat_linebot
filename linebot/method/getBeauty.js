@@ -4,8 +4,9 @@ const fs = require('fs');
 const path = require('path');
 
 async function getPhoto() {
-    const randomNumber = Math.floor(Math.random() * 9) + 1
-    const url = `https://www.ptt.cc/bbs/Beauty/index399${randomNumber}.html`;
+    const randomNumber = Math.floor(Math.random() * 50) + 50
+    const pageIdx = (`0${randomNumber}`).slice(-2)
+    const url = `https://www.ptt.cc/bbs/Beauty/index39${pageIdx}.html`;
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
       Cookie: 'over18=1',
