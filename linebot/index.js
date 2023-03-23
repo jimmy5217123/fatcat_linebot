@@ -73,11 +73,11 @@ async function handleEvent(event) {
   if (event.type !== "message") {
     return Promise.resolve(null);
   }
-  const messageArray = event.message.text.split(' ')
+  const clientMessage = event.message.text
+  const messageArray = clientMessage.split(' ')
   const keyman = messageArray[0]
   messageArray.splice(0, 1)
   const keyMessage = messageArray.join(' ')
-  console.log(messageArray.splice(0, 1), keyMessage)
   const chatType = event.source.type
   const chatroomId = chatType === 'group' ? event.source.groupId : chatType === 'user' ? event.source.userId : '2313213'
   const myUltimateNumberGame = getUltimateNumberGame(chatroomId);
@@ -91,7 +91,24 @@ async function handleEvent(event) {
     }); 
   } 
 
-  if (event.message.text === '閃電五連抽') {
+  if (clientMessage === '吃啥') {
+    const getfood = await axios.get('https://6wcs35.deta.dev/allFood')
+    const food = getfood.data
+    const randomFood =  food[Math.floor(Math.random() * food.length)].name
+    await replyTextMessage(event, randomFood)
+  }
+
+  if (clientMessage === '菜單') {
+    const getfood = await axios.get('https://6wcs35.deta.dev/allFood')
+    const food = getfood.data
+    let foodListString = ''
+    food.forEach(item => {
+      foodListString += `${item.name}\n`
+    });
+    await replyTextMessage(event, foodListString)
+  }
+
+  if (clientMessage === '閃電五連抽') {
     try {
       const imageArray = []
       for (let i = 0; i < 5; i++) {
@@ -104,7 +121,7 @@ async function handleEvent(event) {
     }
   }
 
-  if (event.message.text === '抽') {
+  if (clientMessage === '抽') {
     try {
       const imageObj = await getPhoto()
       await replyImageMessage(event, imageObj)
@@ -113,23 +130,23 @@ async function handleEvent(event) {
     }
   }
 
-  if (event.message.text === '1A2B') {
+  if (clientMessage === '1A2B') {
     const replyText = myOneA2BGame.start()
     await replyTextMessage(event, replyText)
-  } else if (myOneA2BGame.isPlaying && event.message.text.length === 4 && !isNaN(event.message.text)) {
-    const guess = event.message.text;
+  } else if (myOneA2BGame.isPlaying && clientMessage.length === 4 && !isNaN(clientMessage)) {
+    const guess = clientMessage;
     const replyText = myOneA2BGame.guess(guess)
     await replyTextMessage(event, replyText)
   }
 
-  if (event.message.text === '終極密碼') {
+  if (clientMessage === '終極密碼') {
     const replyText = myUltimateNumberGame.startGame();
     await replyTextMessage(event, replyText)
-  } else if (myUltimateNumberGame.isPlaying && event.message.text === 'out') {
+  } else if (myUltimateNumberGame.isPlaying && clientMessage === 'out') {
     const replyText = myUltimateNumberGame.endGame();
     await replyTextMessage(event, replyText)
-  } else if (myUltimateNumberGame.isPlaying && !isNaN(event.message.text)) {
-    const guess = Number(event.message.text);
+  } else if (myUltimateNumberGame.isPlaying && !isNaN(clientMessage)) {
+    const guess = Number(clientMessage);
     const replyText = myUltimateNumberGame.makeGuess(guess)
     await replyTextMessage(event, replyText)
   }
