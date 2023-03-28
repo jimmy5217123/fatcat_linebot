@@ -10,6 +10,7 @@ const openai = new OpenAIApi(configuration);
 const express = require("express");
 const line = require("@line/bot-sdk");
 const axios = require('axios');
+const e = require('express');
 
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN,
@@ -89,7 +90,37 @@ async function handleEvent(event) {
         type: "text",
         text: res.status === 200 ? `${res.data.choices[0].text.replace(/^\s*/,"")}` : `${JSON.stringify(res)}`
     }); 
-  } 
+  }
+
+  if (keyman === '新增菜單' && keyMessage) {
+    const addFood = await axios.post('https://6wcs35.deta.dev/addFood', {
+      name: keyMessage
+    })
+    if (addFood.status === 201) await replyTextMessage(event, '新增成功')
+  }
+  
+  if (clientMessage === '我是誰') {
+    const user = await client.getProfile(event.source.userId)
+    const displayNamre = user.displayName
+    await replyTextMessage(event, displayNamre)
+  }
+
+  if (clientMessage === '群組有誰' && event.source.type === 'group') {
+    try {
+      const groupId = event.source.groupId
+      const members = await client.getGroupMemberIds(groupId);
+      console.log(members)
+      // const memberProfiles = await Promise.all(members.map(async (memberId) => {
+      //     return await client.getGroupMemberProfile(groupId, memberId);
+      // }));
+      // console.log(memberProfiles)
+      // const memberNames = memberProfiles.map((profile) => profile.displayName);
+      // const replyText = `Group members: ${memberNames.join(', ')}`;
+      // await replyTextMessage(event, replyText)
+    } catch (error) {
+      console.log(error)
+    }
+  }
 
   if (clientMessage === '吃啥') {
     const getfood = await axios.get('https://6wcs35.deta.dev/allFood')
