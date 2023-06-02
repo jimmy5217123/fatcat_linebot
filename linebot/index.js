@@ -1,7 +1,7 @@
 const UltimateNumberGame = require('./game/UltimateNumberGame')
 const OneA2BGame = require('./game/OneA2B')
 const getPhoto = require('./method/getBeauty')
-
+const Game = require('./game/fiveCheet')
 const { Configuration, OpenAIApi } = require("openai");
 const configuration = new Configuration({
   apiKey: process.env.OPEN_API_KEY,
@@ -18,11 +18,15 @@ const config = {
 };
 const client = new line.Client(config);
 
+
+// const { createCanvas } = require('canvas');
+
+
 const app = express();
 app.post("/", line.middleware(config), (req, res) => {
-  Promise.all(req.body.events.map(handleEvent)).then((result) =>
-    res.json(result)
-  );
+    Promise.all(req.body.events.map(handleEvent)).then((result) =>
+      res.json(result)
+    );
 });
 
 async function replyTextMessage(event, text) {
@@ -54,6 +58,8 @@ function getOneA2Bgame(chatroomId) {
     return OneA2BGames.get(chatroomId);
   }
 }
+
+const games = new Map();
 
 async function chatAI(string) {
   const response = await openai.createCompletion({
@@ -103,23 +109,6 @@ async function handleEvent(event) {
     const user = await client.getProfile(event.source.userId)
     const displayNamre = user.displayName
     await replyTextMessage(event, displayNamre)
-  }
-
-  if (clientMessage === '群組有誰' && event.source.type === 'group') {
-    try {
-      const groupId = event.source.groupId
-      const members = await client.getGroupMemberIds(groupId);
-      console.log(members)
-      // const memberProfiles = await Promise.all(members.map(async (memberId) => {
-      //     return await client.getGroupMemberProfile(groupId, memberId);
-      // }));
-      // console.log(memberProfiles)
-      // const memberNames = memberProfiles.map((profile) => profile.displayName);
-      // const replyText = `Group members: ${memberNames.join(', ')}`;
-      // await replyTextMessage(event, replyText)
-    } catch (error) {
-      console.log(error)
-    }
   }
 
   if (clientMessage === '吃啥') {
@@ -182,8 +171,136 @@ async function handleEvent(event) {
     await replyTextMessage(event, replyText)
   }
 
+
+
+
+
+  const message = event.message.text;
+  const groupId = event.source.groupId;
+  const userId = event.source.userId;
+  const userData = await client.getProfile(event.source.userId)
+
+  if (message === 'start') {
+    games.set(groupId, new Game());
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '遊戲已開始！請使用 "join" 命令加入遊戲。',
+    });
+  }
+
+  if (message === 'join') {
+    const game = games.get(groupId);
+    if (!game) {
+      return client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '請開始遊戲。',
+      });
+    }
+
+    const joinResult = game.joinGame(userId, userData.displayName);
+    return client.replyMessage(event.replyToken, {
+      type: 'text',
+      text: joinResult,
+    });
+  }
+
+  const game = games.get(groupId);
+  if (!game) {
+    return Promise.resolve(null);
+  }
+
+  const [row, col] = message.split(' ').map(Number);
+  const moveResult = game.makeMove(userId, row, col);
+
+  if (moveResult) {
+    try {
+      const image = generateGameBoardImage(game.gameBoard, game.players);
+      return client.replyMessage(event.replyToken, [
+        {
+          type: 'text',
+          text: moveResult,
+        },
+        {
+          type: 'image',
+          originalContentUrl: image,
+          previewImageUrl: image,
+        },
+      ]);
+    } catch(err) {
+      console.log(err)
+    }
+  }
+
+
   return Promise.resolve(null)
 }
+
+function generateGameBoardText(gameBoard, players) {
+  let gameBoardText = '';
+  for (let row = 0; row < gameBoard.length; row++) {
+    for (let col = 0; col < gameBoard[row].length; col++) {
+      if (gameBoard[row][col] === '-') {
+        gameBoardText += '- ';
+      } else if (gameBoard[row][col] === players[0]) {
+        gameBoardText += 'O ';
+      } else if (gameBoard[row][col] === players[1]) {
+        gameBoardText += '@ ';
+      }
+    }
+    gameBoardText += '\n';
+  }
+  return gameBoardText;
+}
+
+
+function generateGameBoardImage(gameBoard, players) {
+  const canvasSize = 400; // 棋盘画布的尺寸
+  const cellSize = canvasSize / gameBoard.length; // 每个格子的尺寸
+
+  // 创建画布
+  const canvas = createCanvas(canvasSize, canvasSize);
+  const ctx = canvas.getContext('2d');
+
+  // 绘制棋盘背景
+  ctx.fillStyle = '#F5DEB3'; // 棋盘背景颜色
+  ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+  // 绘制棋盘格子
+  ctx.strokeStyle = '#000000'; // 格子边框颜色
+  ctx.lineWidth = 1;
+  for (let row = 0; row < gameBoard.length; row++) {
+    for (let col = 0; col < gameBoard[row].length; col++) {
+      const x = col * cellSize;
+      const y = row * cellSize;
+
+      ctx.beginPath();
+      ctx.rect(x, y, cellSize, cellSize);
+      ctx.stroke();
+
+      // 绘制棋子
+      const chessPiece = gameBoard[row][col];
+      if (chessPiece === players[0]) {
+        ctx.fillStyle = '#FF0000'; // 玩家1棋子颜色
+        ctx.beginPath();
+        ctx.arc(x + cellSize / 2, y + cellSize / 2, cellSize / 2 - 5, 0, Math.PI * 2);
+        ctx.fill();
+      
+      } else if (chessPiece === players[1]) {
+        ctx.fillStyle = '#0000FF'; // 玩家2棋子颜色
+        ctx.beginPath();
+        ctx.arc(x + cellSize / 2, y + cellSize / 2, cellSize / 2 - 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // 将画布转换为图片
+  const image = canvas.toDataURL();
+  return image;
+}
+
+
+
 
 // listen on port
 const port = process.env.PORT || 3000;
